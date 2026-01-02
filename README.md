@@ -38,6 +38,35 @@ supabase functions secrets set SUPABASE_URL=https://xxxx.supabase.co
 - `generate-copies` 함수에서 OpenAI API를 호출하고 DB에서 데이터셋을 읽습니다.
 - `track-selection` 함수에서 선택 이력을 `selection_history` 테이블에 저장합니다.
 
+### Supabase DB & Edge Functions 배포 절차
+
+1. **스키마/시드 적용**: `supabase/sql/schema.sql`을 Supabase SQL Editor나 `psql`로 실행해 테이블, RLS 정책, 초기 데이터셋을 생성합니다.
+   ```bash
+   psql "$SUPABASE_DB_URL" -f supabase/sql/schema.sql
+   ```
+
+2. **Edge Function 배포**: Vercel/프론트엔드에서 호출할 `generate-copies`, `track-selection` 함수를 Supabase에 올립니다.
+   ```bash
+   supabase functions deploy generate-copies --project-ref <YOUR_REF>
+   supabase functions deploy track-selection --project-ref <YOUR_REF>
+   ```
+
+3. **시크릿 설정(필수)**: 서비스 역할 키와 OpenAI 키를 Edge Function에 주입합니다.
+   ```bash
+   supabase functions secrets set --project-ref <YOUR_REF> \
+     OPENAI_API_KEY=sk-... \
+     SUPABASE_SERVICE_ROLE_KEY=... \
+     SUPABASE_URL=https://xxxx.supabase.co
+   ```
+
+4. **로컬 테스트**: Supabase CLI emulation 환경에서 호출해 봅니다.
+   ```bash
+   supabase functions serve generate-copies --env-file .env.local
+   supabase functions serve track-selection --env-file .env.local
+   ```
+
+> `supabase/functions/*` 디렉터리의 TypeScript 코드는 Supabase Edge Runtime(Deno)용입니다. Vercel에는 따로 올릴 필요 없으며, 프론트엔드(`NEXT_PUBLIC_SUPABASE_URL`/`ANON_KEY`)에서 Edge Function만 호출하면 됩니다.
+
 ### 동작 방식 요약
 
 1. 사용자가 아이디어를 입력하면 `generate-copies` Edge Function을 호출합니다.
