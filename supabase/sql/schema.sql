@@ -48,7 +48,6 @@ create policy "copy_datasets_no_public_delete" on public.copy_datasets for delet
 
 create policy "generations_insert_service_role" on public.generations
   for insert
-  using (auth.role() = 'service_role')
   with check (auth.role() = 'service_role');
 create policy "generations_select_service_role" on public.generations
   for select
@@ -56,7 +55,6 @@ create policy "generations_select_service_role" on public.generations
 
 create policy "selection_history_insert_service_role" on public.selection_history
   for insert
-  using (auth.role() = 'service_role')
   with check (auth.role() = 'service_role');
 create policy "selection_history_select_service_role" on public.selection_history
   for select
