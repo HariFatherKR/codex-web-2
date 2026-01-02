@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'About Me | Personal Site',
-  description: '나를 소개하는 포트폴리오 스타일의 웹사이트',
+  title: 'AI 문구 생성기(샘플 기반)',
+  description: '서버리스 샘플 데이터로 빠르게 문구를 만들어보는 Next.js 데모',
 };
 
 export default function RootLayout({
@@ -13,7 +13,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ko">
-      <body className="antialiased">{children}</body>
+      <body className="min-h-screen bg-slate-950 text-slate-50 antialiased">{children}</body>
     </html>
   );
 }
