@@ -35,7 +35,7 @@ export function ChatInputBar({ value, onChange, onSubmit, loading, minLength = 5
     setPlaceholder(placeholderSamples[Math.floor(Math.random() * placeholderSamples.length)]);
   }, []);
 
-  const hint = useMemo(() => hintMessages[Math.floor(Math.random() * hintMessages.length)], [value]);
+  const hint = useMemo(() => hintMessages[Math.floor(Math.random() * hintMessages.length)], []);
 
   const handleSubmit = () => {
     if (loading) return;

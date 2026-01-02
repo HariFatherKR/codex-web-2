@@ -11,13 +11,14 @@ const channelColors: Record<Channel, string> = {
 
 type CopyCardProps = {
   channel: Channel;
-  text: string;
+  copy: string;
+  tone?: string;
   selected?: boolean;
   onSelect?: () => void;
   onCopy?: () => void;
 };
 
-export function CopyCard({ channel, text, selected, onSelect, onCopy }: CopyCardProps) {
+export function CopyCard({ channel, copy, tone, selected, onSelect, onCopy }: CopyCardProps) {
   const highlightClass = selected ? 'ring-2 ring-indigo-400' : '';
   const borderClass = selected ? 'border-indigo-400/70' : 'border-slate-800/60';
 
@@ -33,13 +34,14 @@ export function CopyCard({ channel, text, selected, onSelect, onCopy }: CopyCard
             <Palette size={14} />
             {channel}
           </div>
+          {tone && <span className="text-xs font-semibold text-slate-300">{tone}</span>}
           {selected && (
             <span className="flex items-center gap-1 text-xs font-semibold text-indigo-200">
               <Check size={14} /> 선택 완료
             </span>
           )}
         </div>
-        <p className="flex-1 text-base leading-relaxed text-slate-100 sm:text-lg">{text}</p>
+        <p className="flex-1 text-base leading-relaxed text-slate-100 sm:text-lg">{copy}</p>
         <div className="flex justify-end">
           <span
             onClick={(e) => {

@@ -4,19 +4,24 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, CheckCircle2, ClipboardCheck, Home } from 'lucide-react';
 import { CopyCard } from '@/components/CopyCard';
-import { type GeneratedCopy } from '@/lib/generateFromSamples';
-import { STORAGE_KEYS, getSessionValue, setSessionValue } from '@/lib/storage';
+import { sendSelection } from '@/lib/api';
+import { STORAGE_KEYS, getOrCreateClientSessionId, getSessionValue, setSessionValue } from '@/lib/storage';
+import { type CopyItem } from '@/types/copy';
 
 export default function ResultPage() {
   const [idea, setIdea] = useState('');
-  const [copies, setCopies] = useState<GeneratedCopy[]>([]);
+  const [copies, setCopies] = useState<CopyItem[]>([]);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [copyMessage, setCopyMessage] = useState('');
+  const [selectionMessage, setSelectionMessage] = useState('');
+  const [generationId, setGenerationId] = useState<string | null>(null);
+  const [selectionLoading, setSelectionLoading] = useState(false);
 
   useEffect(() => {
     const storedIdea = getSessionValue<string>(STORAGE_KEYS.idea, '');
-    const stored = getSessionValue<GeneratedCopy[]>(STORAGE_KEYS.results, []);
+    const stored = getSessionValue<CopyItem[]>(STORAGE_KEYS.results, []);
     const storedIndex = getSessionValue<number | null>(STORAGE_KEYS.selectedIndex, null);
+    const storedGenerationId = getSessionValue<string | null>(STORAGE_KEYS.generationId, null);
 
     if (!stored.length) {
       window.location.href = '/';
@@ -26,11 +31,35 @@ export default function ResultPage() {
     setIdea(storedIdea);
     setCopies(stored);
     setSelectedIndex(storedIndex);
+    setGenerationId(storedGenerationId);
   }, []);
 
-  const handleSelect = (index: number) => {
+  const handleSelect = async (index: number) => {
+    if (selectionLoading) return;
     setSelectedIndex(index);
     setSessionValue(STORAGE_KEYS.selectedIndex, index);
+
+    const sessionId = getOrCreateClientSessionId();
+    const item = copies[index];
+    if (!item) return;
+
+    setSelectionLoading(true);
+    try {
+      await sendSelection({
+        generationId,
+        idea,
+        selectedIndex: index,
+        selectedItem: item,
+        clientSessionId: sessionId,
+      });
+      setSelectionMessage('선택한 문구가 기록되었어요.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '선택 기록에 실패했어요.';
+      setSelectionMessage(message);
+    } finally {
+      setTimeout(() => setSelectionMessage(''), 2200);
+      setSelectionLoading(false);
+    }
   };
 
   const handleCopy = async (text: string) => {
@@ -60,6 +89,7 @@ export default function ResultPage() {
             </p>
           )}
           {copyMessage && <p className="text-sm text-emerald-200">{copyMessage}</p>}
+          {selectionMessage && <p className="text-sm text-indigo-100">{selectionMessage}</p>}
         </div>
         <Link
           href="/"
@@ -72,12 +102,13 @@ export default function ResultPage() {
       <div className="space-y-4">
         {copies.map((copy, index) => (
           <CopyCard
-            key={`${copy.patternId}-${copy.channel}`}
+            key={`${copy.patternId ?? 'generated'}-${copy.channel}-${index}`}
             channel={copy.channel}
-            text={copy.text}
+            copy={copy.copy}
+            tone={copy.tone}
             selected={selectedIndex === index}
             onSelect={() => handleSelect(index)}
-            onCopy={() => handleCopy(copy.text)}
+            onCopy={() => handleCopy(copy.copy)}
           />
         ))}
       </div>

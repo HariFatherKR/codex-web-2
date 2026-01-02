@@ -4,8 +4,9 @@ import { useEffect, useState } from 'react';
 import { ArrowRight, CheckCircle2, Sparkles, Timer } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { ChatInputBar } from '@/components/ChatInputBar';
-import { generateFromSamples, type GeneratedCopy } from '@/lib/generateFromSamples';
-import { STORAGE_KEYS, getSessionValue, setSessionValue } from '@/lib/storage';
+import { requestCopies } from '@/lib/api';
+import { STORAGE_KEYS, getOrCreateClientSessionId, getSessionValue, setSessionValue } from '@/lib/storage';
+import { type CopyItem } from '@/types/copy';
 
 const channelTips = [
   {
@@ -27,36 +28,49 @@ export default function HomePage() {
   const [idea, setIdea] = useState('');
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState('');
+  const [clientSessionId, setClientSessionId] = useState('');
 
   useEffect(() => {
     const savedIdea = getSessionValue<string>(STORAGE_KEYS.idea, '');
     if (savedIdea) setIdea(savedIdea);
+    const existingSession = getOrCreateClientSessionId();
+    setClientSessionId(existingSession);
   }, []);
 
   const handleGenerate = async () => {
+    if (loading) return;
     setLoading(true);
-    setStatus('패턴을 고르고 있습니다...');
+    setStatus('데이터셋을 불러오고 있어요...');
 
-    const delay = 650 + Math.random() * 550;
     const recentIds = getSessionValue<string[]>(STORAGE_KEYS.recentIds, []);
 
-    const timer = setTimeout(() => {
-      setStatus('문제 → 해결 → 혜택 → 증거 → CTA를 정리 중...');
-    }, 450);
+    try {
+      const sessionId = clientSessionId || getOrCreateClientSessionId();
+      const response = await requestCopies(idea, sessionId, recentIds);
 
-    const selectedCopies: GeneratedCopy[] = generateFromSamples(idea, recentIds);
+      const nextRecent = [
+        ...recentIds,
+        ...response.items.map((item) => item.patternId).filter(Boolean),
+      ].slice(-15) as string[];
 
-    setTimeout(() => {
-      clearTimeout(timer);
       setSessionValue(STORAGE_KEYS.idea, idea);
-      setSessionValue(STORAGE_KEYS.results, selectedCopies);
+      setSessionValue<CopyItem[]>(STORAGE_KEYS.results, response.items);
+      setSessionValue<string | null>(STORAGE_KEYS.generationId, response.generationId);
       setSessionValue(STORAGE_KEYS.selectedIndex, null);
-      const nextRecent = [...recentIds, ...selectedCopies.map((copy) => copy.patternId)].slice(-15);
       setSessionValue(STORAGE_KEYS.recentIds, nextRecent);
-      setLoading(false);
-      setStatus('완료! 결과 페이지로 이동합니다');
+
+      setStatus(
+        response.usedFallback
+          ? 'OpenAI 호출이 지연되어 샘플 패턴으로 생성했어요.'
+          : '완료! 결과 페이지로 이동합니다'
+      );
       router.push('/result');
-    }, delay);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '문구 생성 중 오류가 발생했어요.';
+      setStatus(message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -64,7 +78,7 @@ export default function HomePage() {
       <header className="mb-8 space-y-3">
         <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 text-xs font-semibold text-indigo-100">
           <Sparkles size={14} />
-          샘플 패턴 기반 · 서버 호출 없이 동작
+          Supabase Edge Function · OpenAI 연동
         </div>
         <h1 className="text-3xl font-semibold leading-tight text-white sm:text-4xl">카피라이팅 패턴 문구 생성기</h1>
         <p className="text-base text-slate-300 sm:text-lg">
@@ -98,8 +112,8 @@ export default function HomePage() {
             </div>
             <ol className="mt-3 space-y-2 text-sm text-slate-300">
               <li>1) 아이디어를 한 줄로 적고 Enter를 눌러요.</li>
-              <li>2) 0.6~1.2초 가짜 로딩 후 채널별 결과 5개가 생성됩니다.</li>
-              <li>3) 마음에 드는 카드를 선택하고 복사하거나 메인으로 돌아갑니다.</li>
+              <li>2) Supabase Edge Function(generate-copies)에서 DB 패턴과 OpenAI를 조합해 5개 문구를 반환합니다.</li>
+              <li>3) 마음에 드는 카드를 선택하면 track-selection으로 기록돼요.</li>
             </ol>
           </div>
         </div>
@@ -117,16 +131,16 @@ export default function HomePage() {
       </section>
 
       <section className="mt-8 space-y-3 rounded-3xl border border-slate-800/70 bg-slate-900/60 p-5 shadow-soft">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.25em] text-indigo-200">Session Storage</p>
             <h3 className="text-lg font-semibold text-white">URL 이동 없이 상태를 유지해요</h3>
           </div>
-          <span className="text-xs text-slate-400">idea/items/selectedIndex를 sessionStorage에 저장합니다.</span>
+          <span className="text-xs text-slate-400">idea/items/generationId를 sessionStorage에 저장하고 clientSessionId는 localStorage에 보관합니다.</span>
         </div>
         <div className="grid gap-3 text-sm text-slate-300 sm:grid-cols-2">
           <p>입력값을 그대로 저장해 새로고침해도 다시 쓸 수 있어요.</p>
-          <p>최근 노출된 패턴 ID를 함께 저장해 같은 문구 반복을 줄입니다.</p>
+          <p>clientSessionId는 Edge Function 호출마다 재사용돼 히스토리와 연결됩니다.</p>
         </div>
       </section>
 

@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'AI 문구 생성기(샘플 기반)',
-  description: '서버리스 샘플 데이터로 빠르게 문구를 만들어보는 Next.js 데모',
+  title: '마케팅 문구 생성기 | Supabase + OpenAI',
+  description: 'Supabase Edge Function과 OpenAI ChatGPT로 채널별 카피라이팅 패턴 문구를 생성하는 Next.js 데모',
 };
 
 export default function RootLayout({
