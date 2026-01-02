@@ -1,4 +1,5 @@
 import { copyPatterns, type Channel, type CopyPattern } from '@/data/copyPatterns';
+import { type CopyItem } from '@/types/copy';
 
 const FALLBACK_SLOTS = {
   문제: '시간이 모자라 목표를 놓치는 것',
@@ -10,10 +11,10 @@ const FALLBACK_SLOTS = {
 
 const NUMBER_POOL = ['1,000', '5,000', '10,000', '25,000'];
 
-export type GeneratedCopy = {
-  channel: Channel;
-  text: string;
-  patternId: string;
+const FALLBACK_TONE: Record<Channel, string> = {
+  SNS: '공감/캐주얼',
+  BANNER: '직설/혜택',
+  LANDING: '신뢰/설득',
 };
 
 type ParsedSlots = Partial<typeof FALLBACK_SLOTS>;
@@ -94,7 +95,7 @@ function pickRandom<T>(list: T[]) {
   return list[index];
 }
 
-function buildCopyFromPattern(pattern: CopyPattern, slots: ParsedSlots): GeneratedCopy | null {
+function buildCopyFromPattern(pattern: CopyPattern, slots: ParsedSlots): CopyItem | null {
   const withNumber = { ...slots, 숫자: pickRandom(NUMBER_POOL) ?? NUMBER_POOL[0] };
   const chosen = {
     problem: pickRandom(pattern.steps.problem),
@@ -125,12 +126,13 @@ function buildCopyFromPattern(pattern: CopyPattern, slots: ParsedSlots): Generat
 
   return {
     channel: pattern.channel,
-    text,
+    copy: text,
+    tone: FALLBACK_TONE[pattern.channel],
     patternId: pattern.id,
   };
 }
 
-export function generateFromSamples(input: string, recentIds: string[] = []): GeneratedCopy[] {
+export function generateFromSamples(input: string, recentIds: string[] = []): CopyItem[] {
   const normalized = normalize(input);
   const words = normalized.split(' ');
   const slots = parseSlots(input);
@@ -151,7 +153,7 @@ export function generateFromSamples(input: string, recentIds: string[] = []): Ge
   const pool = filtered.length >= 5 ? filtered : topPool;
 
   const blueprint: Channel[] = ['SNS', 'BANNER', 'LANDING', 'SNS', 'BANNER'];
-  const results: GeneratedCopy[] = [];
+  const results: CopyItem[] = [];
   const used = new Set<string>();
 
   blueprint.forEach((channel) => {
