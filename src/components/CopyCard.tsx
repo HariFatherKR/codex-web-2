@@ -1,25 +1,23 @@
 'use client';
 
 import { Check, Copy, Palette } from 'lucide-react';
-import { type Tone } from '@/data/copyBank';
+import { type Channel } from '@/data/copyPatterns';
 
-const toneColors: Record<Tone, string> = {
-  '밝고 캐주얼': 'bg-indigo-500/15 text-indigo-200 border-indigo-400/30',
-  '신뢰감/전문': 'bg-emerald-500/15 text-emerald-200 border-emerald-400/30',
-  '감성/스토리': 'bg-rose-500/15 text-rose-100 border-rose-400/30',
-  '퍼포먼스/직접': 'bg-amber-500/15 text-amber-100 border-amber-400/30',
-  '미니멀/직관': 'bg-slate-700/40 text-slate-100 border-slate-500/40',
+const channelColors: Record<Channel, string> = {
+  SNS: 'bg-indigo-500/15 text-indigo-200 border-indigo-400/30',
+  BANNER: 'bg-amber-500/15 text-amber-100 border-amber-400/30',
+  LANDING: 'bg-emerald-500/15 text-emerald-200 border-emerald-400/30',
 };
 
 type CopyCardProps = {
-  tone: Tone;
+  channel: Channel;
   text: string;
   selected?: boolean;
   onSelect?: () => void;
   onCopy?: () => void;
 };
 
-export function CopyCard({ tone, text, selected, onSelect, onCopy }: CopyCardProps) {
+export function CopyCard({ channel, text, selected, onSelect, onCopy }: CopyCardProps) {
   const highlightClass = selected ? 'ring-2 ring-indigo-400' : '';
   const borderClass = selected ? 'border-indigo-400/70' : 'border-slate-800/60';
 
@@ -31,9 +29,9 @@ export function CopyCard({ tone, text, selected, onSelect, onCopy }: CopyCardPro
     >
       <div className={`card-surface flex h-full flex-col gap-4 border ${borderClass} p-4 sm:p-5`}>
         <div className="flex items-center justify-between gap-3">
-          <div className={`tone-pill border ${toneColors[tone]} inline-flex items-center gap-2`}>
+          <div className={`tone-pill border ${channelColors[channel]} inline-flex items-center gap-2`}>
             <Palette size={14} />
-            {tone}
+            {channel}
           </div>
           {selected && (
             <span className="flex items-center gap-1 text-xs font-semibold text-indigo-200">

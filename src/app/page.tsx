@@ -7,12 +7,19 @@ import { ChatInputBar } from '@/components/ChatInputBar';
 import { generateFromSamples, type GeneratedCopy } from '@/lib/generateFromSamples';
 import { STORAGE_KEYS, getSessionValue, setSessionValue } from '@/lib/storage';
 
-const toneTips = [
-  { label: '밝고 캐주얼', text: '친근하고 가벼운 캠페인이나 SNS용으로 잘 어울려요.' },
-  { label: '신뢰감/전문', text: 'B2B, 금융, 의료 등 신뢰가 중요한 상황에 적합해요.' },
-  { label: '감성/스토리', text: '브랜드 스토리나 고객 후기처럼 서정적인 톤이 필요할 때.' },
-  { label: '퍼포먼스/직접', text: '전환을 노리는 랜딩/광고 문구에 바로 써먹을 수 있어요.' },
-  { label: '미니멀/직관', text: '짧고 빠른 메시지가 필요한 배너나 푸시에 적합합니다.' },
+const channelTips = [
+  {
+    label: 'SNS',
+    text: '공감과 가벼운 전환을 노리는 톤. 상황 묘사와 감정을 살려요.',
+  },
+  {
+    label: 'BANNER',
+    text: '숫자와 혜택을 바로 던지는 짧은 카피. CTA가 가장 강합니다.',
+  },
+  {
+    label: 'LANDING',
+    text: '논리적인 흐름과 신뢰를 강조한 톤. 문제 → 해결 → 혜택 순서를 살립니다.',
+  },
 ];
 
 export default function HomePage() {
@@ -28,13 +35,13 @@ export default function HomePage() {
 
   const handleGenerate = async () => {
     setLoading(true);
-    setStatus('샘플을 찾는 중입니다...');
+    setStatus('패턴을 고르고 있습니다...');
 
     const delay = 650 + Math.random() * 550;
     const recentIds = getSessionValue<string[]>(STORAGE_KEYS.recentIds, []);
 
     const timer = setTimeout(() => {
-      setStatus('타이핑 효과를 준비하는 중...');
+      setStatus('문제 → 해결 → 혜택 → 증거 → CTA를 정리 중...');
     }, 450);
 
     const selectedCopies: GeneratedCopy[] = generateFromSamples(idea, recentIds);
@@ -44,7 +51,7 @@ export default function HomePage() {
       setSessionValue(STORAGE_KEYS.idea, idea);
       setSessionValue(STORAGE_KEYS.results, selectedCopies);
       setSessionValue(STORAGE_KEYS.selectedIndex, null);
-      const nextRecent = [...recentIds, ...selectedCopies.map((copy) => copy.sampleId)].slice(-15);
+      const nextRecent = [...recentIds, ...selectedCopies.map((copy) => copy.patternId)].slice(-15);
       setSessionValue(STORAGE_KEYS.recentIds, nextRecent);
       setLoading(false);
       setStatus('완료! 결과 페이지로 이동합니다');
@@ -57,12 +64,11 @@ export default function HomePage() {
       <header className="mb-8 space-y-3">
         <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 text-xs font-semibold text-indigo-100">
           <Sparkles size={14} />
-          샘플 데이터 기반 · 서버 호출 없이 동작
+          샘플 패턴 기반 · 서버 호출 없이 동작
         </div>
-        <h1 className="text-3xl font-semibold leading-tight text-white sm:text-4xl">AI처럼 보이는 문구 생성기</h1>
+        <h1 className="text-3xl font-semibold leading-tight text-white sm:text-4xl">카피라이팅 패턴 문구 생성기</h1>
         <p className="text-base text-slate-300 sm:text-lg">
-          로컬에 담긴 200개 이상의 샘플 문구를 섞어 5개 톤으로 결과를 보여줍니다. 입력값은 sessionStorage에
-          저장되어 새로고침해도 유지돼요.
+          문제 → 해결 → 혜택 → 사회적 증거 → CTA 5단계를 유지한 채, 채널별 톤과 길이를 조절한 5개 문구를 만들어 드려요.
         </p>
         {status && <p className="text-sm text-indigo-200">{status}</p>}
       </header>
@@ -74,15 +80,15 @@ export default function HomePage() {
             <ul className="space-y-3 text-sm text-slate-300">
               <li className="flex items-start gap-3">
                 <CheckCircle2 className="mt-0.5 text-indigo-300" size={18} />
-                <span>입력에서 브랜드/타겟/혜택 단어를 간단히 추출해 슬롯을 채웁니다.</span>
+                <span>입력에서 문제/타겟/혜택/제품 키워드를 추출해 슬롯을 채웁니다.</span>
               </li>
               <li className="flex items-start gap-3">
                 <CheckCircle2 className="mt-0.5 text-indigo-300" size={18} />
-                <span>키워드 매칭 점수가 높은 샘플을 골라 톤별로 다른 문구를 뽑아요.</span>
+                <span>채널별 패턴(SNS/배너/랜딩) 중 키워드가 맞는 샘플을 점수화해 고릅니다.</span>
               </li>
               <li className="flex items-start gap-3">
                 <CheckCircle2 className="mt-0.5 text-indigo-300" size={18} />
-                <span>최근 사용한 샘플 ID를 sessionStorage에 저장해 반복 노출을 줄입니다.</span>
+                <span>항상 문제 → 해결 → 혜택 → 사회적 증거 → CTA 흐름을 유지한 문단을 조합합니다.</span>
               </li>
             </ul>
           </div>
@@ -92,19 +98,19 @@ export default function HomePage() {
             </div>
             <ol className="mt-3 space-y-2 text-sm text-slate-300">
               <li>1) 아이디어를 한 줄로 적고 Enter를 눌러요.</li>
-              <li>2) 0.6~1.2초 가짜 로딩 후 결과 5개가 생성됩니다.</li>
+              <li>2) 0.6~1.2초 가짜 로딩 후 채널별 결과 5개가 생성됩니다.</li>
               <li>3) 마음에 드는 카드를 선택하고 복사하거나 메인으로 돌아갑니다.</li>
             </ol>
           </div>
         </div>
-        <div className="grid gap-4 px-5 py-6 sm:grid-cols-5 sm:px-6 sm:py-7">
-          {toneTips.map((tone) => (
-            <div key={tone.label} className="rounded-2xl border border-slate-800/70 bg-slate-900/40 p-4 text-sm text-slate-200">
+        <div className="grid gap-4 px-5 py-6 sm:grid-cols-3 sm:px-6 sm:py-7">
+          {channelTips.map((channel) => (
+            <div key={channel.label} className="rounded-2xl border border-slate-800/70 bg-slate-900/40 p-4 text-sm text-slate-200">
               <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-slate-800/80 px-3 py-1 text-xs font-semibold text-slate-100">
-                {tone.label}
+                {channel.label}
                 <ArrowRight size={14} />
               </div>
-              <p className="leading-relaxed text-slate-300">{tone.text}</p>
+              <p className="leading-relaxed text-slate-300">{channel.text}</p>
             </div>
           ))}
         </div>
@@ -120,7 +126,7 @@ export default function HomePage() {
         </div>
         <div className="grid gap-3 text-sm text-slate-300 sm:grid-cols-2">
           <p>입력값을 그대로 저장해 새로고침해도 다시 쓸 수 있어요.</p>
-          <p>최근 노출된 샘플 ID를 함께 저장해 같은 문구 반복을 줄입니다.</p>
+          <p>최근 노출된 패턴 ID를 함께 저장해 같은 문구 반복을 줄입니다.</p>
         </div>
       </section>
 

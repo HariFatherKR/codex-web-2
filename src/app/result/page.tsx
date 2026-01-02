@@ -50,7 +50,7 @@ export default function ResultPage() {
         <div className="space-y-2">
           <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/40 bg-indigo-500/10 px-3 py-1 text-xs font-semibold text-indigo-100">
             <ClipboardCheck size={14} />
-            톤별 문구 5개 준비 완료
+            채널별 패턴 5개 준비 완료
           </div>
           <h1 className="text-2xl font-semibold text-white sm:text-3xl">결과 확인</h1>
           {idea && <p className="text-sm text-slate-300">입력: {idea}</p>}
@@ -72,8 +72,8 @@ export default function ResultPage() {
       <div className="space-y-4">
         {copies.map((copy, index) => (
           <CopyCard
-            key={`${copy.sampleId}-${copy.tone}`}
-            tone={copy.tone}
+            key={`${copy.patternId}-${copy.channel}`}
+            channel={copy.channel}
             text={copy.text}
             selected={selectedIndex === index}
             onSelect={() => handleSelect(index)}

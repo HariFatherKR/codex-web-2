@@ -1,21 +1,24 @@
-import { copyBank, TONES, type CopyBankItem, type Tone } from '@/data/copyBank';
+import { copyPatterns, type Channel, type CopyPattern } from '@/data/copyPatterns';
 
 const FALLBACK_SLOTS = {
-  brand: '우리',
-  product: '서비스',
-  target: '누구나',
-  benefit: '더 쉽게',
+  문제: '시간이 모자라 목표를 놓치는 것',
+  타겟: '당신',
+  제품: '이 서비스',
+  해결책: '이 서비스',
+  혜택: '더 빠른 결과',
 };
 
-type SlotKey = keyof CopyBankItem['slots'];
-
-type ParsedSlots = Partial<Record<SlotKey, string>>;
+const NUMBER_POOL = ['1,000', '5,000', '10,000', '25,000'];
 
 export type GeneratedCopy = {
-  tone: Tone;
+  channel: Channel;
   text: string;
-  sampleId: string;
+  patternId: string;
 };
+
+type ParsedSlots = Partial<typeof FALLBACK_SLOTS>;
+
+type SlotKey = keyof typeof FALLBACK_SLOTS | '숫자';
 
 function normalize(text: string) {
   return text
@@ -36,42 +39,51 @@ function extractValue(input: string, label: string) {
 
 function parseSlots(input: string): ParsedSlots {
   const slots: ParsedSlots = {};
-  const brand = extractValue(input, '브랜드명|brand');
   const product = extractValue(input, '제품|서비스|product');
   const target = extractValue(input, '타겟|대상|target');
   const benefit = extractValue(input, '혜택|benefit');
+  const problem = extractValue(input, '문제|pain|problem');
 
-  if (brand) slots.brand = brand;
-  if (product) slots.product = product;
-  if (target) slots.target = target;
-  if (benefit) slots.benefit = benefit;
+  if (product) slots.제품 = product;
+  if (target) slots.타겟 = target;
+  if (benefit) slots.혜택 = benefit;
+  if (problem) slots.문제 = problem;
 
   const normalized = normalize(input);
   targetKeywords.forEach((keyword) => {
-    if (normalized.includes(normalize(keyword)) && !slots.target) {
-      slots.target = keyword;
+    if (normalized.includes(normalize(keyword)) && !slots.타겟) {
+      slots.타겟 = keyword;
     }
   });
 
   benefitKeywords.forEach((keyword) => {
-    if (normalized.includes(normalize(keyword)) && !slots.benefit) {
-      slots.benefit = keyword;
+    if (normalized.includes(normalize(keyword)) && !slots.혜택) {
+      slots.혜택 = keyword;
     }
   });
+
+  if (!slots.문제) {
+    const firstPhrase = input.split(/[,\.]/)[0]?.trim();
+    if (firstPhrase) {
+      slots.문제 = firstPhrase;
+    }
+  }
 
   return slots;
 }
 
-function scoreSample(inputWords: string[], item: CopyBankItem) {
-  const matches = item.keywords.reduce((score, keyword) => {
+function scorePattern(inputWords: string[], pattern: CopyPattern) {
+  const matches = pattern.keywords.reduce((score, keyword) => {
     return inputWords.includes(normalize(keyword)) ? score + 1 : score;
   }, 0);
   return matches;
 }
 
-function replaceSlots(text: string, slots: ParsedSlots) {
-  return text.replace(/\{(brand|product|target|benefit)\}/g, (match, key: SlotKey) => {
-    const value = slots[key] || FALLBACK_SLOTS[key];
+function replaceSlots(text: string, slots: ParsedSlots & { 숫자: string }) {
+  return text.replace(/\{(문제|타겟|제품|해결책|혜택|숫자)\}/g, (match, key: SlotKey) => {
+    if (key === '숫자') return slots.숫자;
+    const value = slots[key as keyof ParsedSlots] || FALLBACK_SLOTS[key as keyof ParsedSlots];
+    if (key === '해결책' && !slots.해결책) return slots.제품 || FALLBACK_SLOTS.제품;
     return value;
   });
 }
@@ -82,44 +94,78 @@ function pickRandom<T>(list: T[]) {
   return list[index];
 }
 
+function buildCopyFromPattern(pattern: CopyPattern, slots: ParsedSlots): GeneratedCopy | null {
+  const withNumber = { ...slots, 숫자: pickRandom(NUMBER_POOL) ?? NUMBER_POOL[0] };
+  const chosen = {
+    problem: pickRandom(pattern.steps.problem),
+    solution: pickRandom(pattern.steps.solution),
+    benefit: pickRandom(pattern.steps.benefit),
+    socialProof: pickRandom(pattern.steps.socialProof),
+    cta: pickRandom(pattern.steps.cta),
+  };
+
+  if (!chosen.problem || !chosen.solution || !chosen.benefit || !chosen.socialProof || !chosen.cta) {
+    return null;
+  }
+
+  const mergedSlots: ParsedSlots = {
+    ...pattern.slots,
+    ...slots,
+    해결책: slots.해결책 || pattern.slots?.해결책 || slots.제품 || pattern.slots?.제품,
+    제품: slots.제품 || pattern.slots?.제품,
+    타겟: slots.타겟 || pattern.slots?.타겟,
+    문제: slots.문제 || pattern.slots?.문제,
+    혜택: slots.혜택 || pattern.slots?.혜택,
+  };
+
+  const text = replaceSlots(
+    [chosen.problem, chosen.solution, chosen.benefit, chosen.socialProof, chosen.cta].join(' '),
+    { ...mergedSlots, 숫자: withNumber.숫자 }
+  );
+
+  return {
+    channel: pattern.channel,
+    text,
+    patternId: pattern.id,
+  };
+}
+
 export function generateFromSamples(input: string, recentIds: string[] = []): GeneratedCopy[] {
   const normalized = normalize(input);
   const words = normalized.split(' ');
   const slots = parseSlots(input);
 
-  const ranked = copyBank
-    .map((item) => ({
-      item,
-      score: scoreSample(words, item),
+  const ranked = copyPatterns
+    .map((pattern) => ({
+      pattern,
+      score: scorePattern(words, pattern),
     }))
     .sort((a, b) => b.score - a.score);
 
   const topPool = ranked
-    .filter((entry) => entry.score > 0 || ranked.indexOf(entry) < 12)
-    .map((entry) => entry.item)
-    .slice(0, 18);
+    .filter((entry, index) => entry.score > 0 || index < 8)
+    .map((entry) => entry.pattern)
+    .slice(0, 12);
 
-  const filtered = topPool.filter((item) => !recentIds.includes(item.id));
-  const pool = filtered.length >= 6 ? filtered : topPool;
+  const filtered = topPool.filter((pattern) => !recentIds.includes(pattern.id));
+  const pool = filtered.length >= 5 ? filtered : topPool;
 
-  const usedIds = new Set<string>();
+  const blueprint: Channel[] = ['SNS', 'BANNER', 'LANDING', 'SNS', 'BANNER'];
   const results: GeneratedCopy[] = [];
+  const used = new Set<string>();
 
-  TONES.forEach((tone) => {
-    const available = pool.filter((item) => !usedIds.has(item.id));
-    const selectedSample = pickRandom(available.length ? available : pool);
+  blueprint.forEach((channel) => {
+    const candidates = pool.filter((pattern) => pattern.channel === channel && !used.has(pattern.id));
+    const fallback = pool.filter((pattern) => !used.has(pattern.id));
+    const selected = pickRandom(candidates.length ? candidates : fallback);
 
-    if (!selectedSample) return;
+    if (!selected) return;
 
-    usedIds.add(selectedSample.id);
-    const candidate = pickRandom(selectedSample.copies[tone]);
-    if (!candidate) return;
-
-    results.push({
-      tone,
-      text: replaceSlots(candidate, { ...selectedSample.slots, ...slots }),
-      sampleId: selectedSample.id,
-    });
+    used.add(selected.id);
+    const built = buildCopyFromPattern(selected, slots);
+    if (built) {
+      results.push(built);
+    }
   });
 
   return results;
