@@ -8,9 +8,18 @@ const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
 async function handler(req: Request): Promise<Response> {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { status: 200, headers: corsHeaders });
+  }
+
   if (req.method !== "POST") {
-    return new Response("Method not allowed", { status: 405 });
+    return new Response("Method not allowed", { status: 405, headers: corsHeaders });
   }
 
   const { generationId, idea, selectedIndex, selectedItem, clientSessionId } = await req.json();
@@ -18,7 +27,7 @@ async function handler(req: Request): Promise<Response> {
   if (!idea || typeof selectedIndex !== "number" || selectedIndex < 0) {
     return new Response(JSON.stringify({ error: "idea, selectedIndex are required" }), {
       status: 400,
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   }
 
@@ -34,12 +43,12 @@ async function handler(req: Request): Promise<Response> {
     console.error("Failed to insert selection", error);
     return new Response(JSON.stringify({ error: "failed to save selection" }), {
       status: 500,
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   }
 
   return new Response(JSON.stringify({ ok: true }), {
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...corsHeaders },
   });
 }
 

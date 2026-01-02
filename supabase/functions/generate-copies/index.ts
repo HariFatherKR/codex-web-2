@@ -113,9 +113,18 @@ async function generateWithOpenAI(dataset: CopyDataset, idea: string, locale: st
   return parsed.items?.length ? parsed.items : null;
 }
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
 async function handler(req: Request): Promise<Response> {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { status: 200, headers: corsHeaders });
+  }
+
   if (req.method !== "POST") {
-    return new Response("Method not allowed", { status: 405 });
+    return new Response("Method not allowed", { status: 405, headers: corsHeaders });
   }
 
   const { idea, locale = "ko-KR", datasetVersion, clientSessionId } = await req.json();
@@ -123,7 +132,7 @@ async function handler(req: Request): Promise<Response> {
   if (!idea || typeof idea !== "string" || idea.length < 4) {
     return new Response(JSON.stringify({ error: "idea is required and should be >= 4 chars" }), {
       status: 400,
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   }
 
@@ -131,7 +140,7 @@ async function handler(req: Request): Promise<Response> {
   if (!dataset) {
     return new Response(JSON.stringify({ error: "dataset not found" }), {
       status: 404,
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   }
 
@@ -165,7 +174,7 @@ async function handler(req: Request): Promise<Response> {
 
   return new Response(
     JSON.stringify({ generationId: generationRow?.id, items }),
-    { headers: { "Content-Type": "application/json" } },
+    { headers: { "Content-Type": "application/json", ...corsHeaders } },
   );
 }
 
